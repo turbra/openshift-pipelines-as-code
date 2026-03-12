@@ -10,7 +10,7 @@ metadata:
       target_branch == "<git-branch>" &&
       files.all.exists(x, x.matches("^Dockerfile$") || x.matches("^app/.*"))
     pipelinesascode.tekton.dev/cancel-in-progress: "true"
-    pipelinesascode.tekton.dev/max-keep-runs: "5"
+    pipelinesascode.tekton.dev/max-keep-runs: "1"
 spec:
   pipelineRef:
     name: <pipeline-name>
