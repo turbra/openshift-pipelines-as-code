@@ -29,7 +29,7 @@ spec:
           value: /tekton/home
       securityContext:
         allowPrivilegeEscalation: false
-        runAsNonRoot: true
+        runAsNonRoot: false
         capabilities:
           drop:
             - ALL
