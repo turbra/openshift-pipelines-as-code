@@ -1,0 +1,51 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: <app-name>-ci-
+  annotations:
+    pipelinesascode.tekton.dev/task: "[git-clone]"
+    pipelinesascode.tekton.dev/target-namespace: "<target-namespace>"
+    pipelinesascode.tekton.dev/on-cel-expression: |
+      event == "push" &&
+      target_branch == "<git-branch>" &&
+      files.all.exists(x, x.matches("^Dockerfile$") || x.matches("^app/.*"))
+    pipelinesascode.tekton.dev/cancel-in-progress: "true"
+    pipelinesascode.tekton.dev/max-keep-runs: "5"
+spec:
+  pipelineRef:
+    name: <pipeline-name>
+  taskRunTemplate:
+    serviceAccountName: pipeline
+  params:
+    - name: app_name
+      value: <app-name>
+    - name: repo_url
+      value: "{{ repo_url }}"
+    - name: revision
+      value: "{{ revision }}"
+    - name: image
+      value: "<image-registry>/<image-repository>:{{ revision }}"
+    - name: namespace
+      value: <target-namespace>
+    - name: manifest_dir
+      value: deployment/app
+    - name: buildconfig_name
+      value: <buildconfig-name>
+    - name: deployment_name
+      value: <deployment-name>
+    - name: container_name
+      value: <container-name>
+  timeouts:
+    pipeline: 30m
+  workspaces:
+    - name: source
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+    - name: basic-auth
+      secret:
+        secretName: "{{ git_auth_secret }}"

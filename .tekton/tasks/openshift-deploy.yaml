@@ -1,0 +1,42 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: openshift-deploy
+spec:
+  description: Apply a manifest directory and update the deployment image.
+  params:
+    - name: namespace
+      type: string
+    - name: manifest_dir
+      type: string
+    - name: image
+      type: string
+    - name: deployment_name
+      type: string
+    - name: container_name
+      type: string
+  workspaces:
+    - name: source
+  steps:
+    - name: apply-and-rollout
+      image: registry.redhat.io/openshift4/ose-cli:latest
+      workingDir: $(workspaces.source.path)
+      env:
+        - name: HOME
+          value: /tekton/home
+      securityContext:
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        capabilities:
+          drop:
+            - ALL
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        manifest_dir="$(workspaces.source.path)/$(params.manifest_dir)"
+
+        oc -n "$(params.namespace)" apply -f "${manifest_dir}"
+        oc -n "$(params.namespace)" set image "deployment/$(params.deployment_name)" \
+          "$(params.container_name)=$(params.image)"
+        oc -n "$(params.namespace)" rollout status "deployment/$(params.deployment_name)" --timeout=180s

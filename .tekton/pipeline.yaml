@@ -1,0 +1,80 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: <pipeline-name>
+spec:
+  description: Standard stateless application flow for clone, binary build, and OpenShift deployment.
+  params:
+    - name: app_name
+      type: string
+    - name: repo_url
+      type: string
+    - name: revision
+      type: string
+    - name: image
+      type: string
+    - name: namespace
+      type: string
+    - name: manifest_dir
+      type: string
+    - name: buildconfig_name
+      type: string
+    - name: deployment_name
+      type: string
+    - name: container_name
+      type: string
+  workspaces:
+    - name: source
+    - name: basic-auth
+  tasks:
+    - name: clone
+      taskRef:
+        name: git-clone
+      params:
+        - name: url
+          value: $(params.repo_url)
+        - name: revision
+          value: $(params.revision)
+        - name: deleteExisting
+          value: "true"
+      workspaces:
+        - name: output
+          workspace: source
+        - name: basic-auth
+          workspace: basic-auth
+    - name: build-image
+      runAfter:
+        - clone
+      taskRef:
+        name: openshift-binary-build
+      params:
+        - name: app_name
+          value: $(params.app_name)
+        - name: image
+          value: $(params.image)
+        - name: namespace
+          value: $(params.namespace)
+        - name: buildconfig_name
+          value: $(params.buildconfig_name)
+      workspaces:
+        - name: source
+          workspace: source
+    - name: deploy
+      runAfter:
+        - build-image
+      taskRef:
+        name: openshift-deploy
+      params:
+        - name: namespace
+          value: $(params.namespace)
+        - name: manifest_dir
+          value: $(params.manifest_dir)
+        - name: image
+          value: $(tasks.build-image.results.image-url)
+        - name: deployment_name
+          value: $(params.deployment_name)
+        - name: container_name
+          value: $(params.container_name)
+      workspaces:
+        - name: source
+          workspace: source

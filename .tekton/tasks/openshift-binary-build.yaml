@@ -1,0 +1,90 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: openshift-binary-build
+spec:
+  description: Start an OpenShift binary Docker build and push the image to an external registry.
+  params:
+    - name: app_name
+      type: string
+    - name: image
+      type: string
+    - name: namespace
+      type: string
+    - name: buildconfig_name
+      type: string
+  results:
+    - name: image-url
+      description: Fully qualified image reference pushed by the build.
+    - name: image-digest
+      description: Image digest reported by the completed OpenShift build.
+  workspaces:
+    - name: source
+  steps:
+    - name: start-build
+      image: registry.redhat.io/openshift4/ose-cli:latest
+      workingDir: $(workspaces.source.path)
+      env:
+        - name: HOME
+          value: /tekton/home
+      securityContext:
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        capabilities:
+          drop:
+            - ALL
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        cat <<EOF | oc -n "$(params.namespace)" apply -f -
+        apiVersion: build.openshift.io/v1
+        kind: BuildConfig
+        metadata:
+          name: $(params.buildconfig_name)
+          labels:
+            app: $(params.app_name)
+        spec:
+          runPolicy: SerialLatestOnly
+          successfulBuildsHistoryLimit: 2
+          failedBuildsHistoryLimit: 2
+          source:
+            type: Binary
+          strategy:
+            type: Docker
+            dockerStrategy:
+              dockerfilePath: Dockerfile
+              noCache: true
+              forcePull: true
+          output:
+            to:
+              kind: DockerImage
+              name: $(params.image)
+            pushSecret:
+              name: registry-auth
+        EOF
+
+        build_ref="$(oc -n "$(params.namespace)" start-build "$(params.buildconfig_name)" \
+          --from-dir "$(workspaces.source.path)" \
+          -o name)"
+        build_name="${build_ref##*/}"
+
+        oc -n "$(params.namespace)" logs -f "build/${build_name}" || true
+
+        while true; do
+          phase="$(oc -n "$(params.namespace)" get build "${build_name}" -o jsonpath='{.status.phase}')"
+          case "${phase}" in
+            Complete)
+              break
+              ;;
+            Failed|Error|Cancelled)
+              echo "Build ${build_name} finished in unexpected phase: ${phase}" >&2
+              exit 1
+              ;;
+          esac
+          sleep 5
+        done
+
+        printf '%s' "$(params.image)" | tee "$(results.image-url.path)"
+        oc -n "$(params.namespace)" get build "${build_name}" \
+          -o jsonpath='{.status.output.to.imageDigest}' | tee "$(results.image-digest.path)"
