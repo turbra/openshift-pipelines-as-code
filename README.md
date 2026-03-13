@@ -25,6 +25,7 @@ Use the repository in this order:
 - `deployment/pac/` - namespace-scoped Pipelines as Code bootstrap resources
 
 ## [OpenShift Pipelines as Code (PaC) CI/CD Model](https://pipelinesascode.com/)
+For more information on Pipelines as Code concepts and architecture, see the [official documentation](https://pipelinesascode.com/docs/concepts/).
 
 On pushes to the branch configured in `.tekton/pipelinerun.yaml`, PaC creates a `PipelineRun` only when one of these paths changes:
 
