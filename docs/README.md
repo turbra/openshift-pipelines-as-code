@@ -5,3 +5,5 @@
 ![Repositories](repositories.png)
 
 ![PipelineRun Details](pipelinerundetails.png)
+
+![Deployed](deployed.png)
