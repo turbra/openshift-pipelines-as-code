@@ -4,6 +4,20 @@ This repository is a reusable OpenShift application template with a minimal Fast
 Fork it, replace the template placeholders, bootstrap the PaC resources in your namespace, and let the pipeline build and deploy your image.
 The sample app follows the `hello-openshift` pattern: it listens on port `8080` and renders the homepage from the `RESPONSE` environment variable.
 
+## Table of Contents
+
+- [Workflow](#workflow)
+- [Project Structure](#project-structure)
+- [OpenShift Pipelines as Code (PaC) CI/CD Model](#openshift-pipelines-as-code-pac-cicd-model)
+- [Customize After Forking](#customize-after-forking)
+- [PaC Bootstrap](#pac-bootstrap)
+- [Runtime Manifests](#runtime-manifests)
+- [Validation](#validation)
+- [Reuse In Another Repo](#reuse-in-another-repo)
+- [Security Notes](#security-notes)
+- [Health Endpoints](#health-endpoints)
+- [Event Flow](#event-flow)
+
 ## Workflow
 
 Use the repository in this order:
@@ -25,7 +39,7 @@ Use the repository in this order:
 - `deployment/pac/` - namespace-scoped Pipelines as Code bootstrap resources
 
 ## [OpenShift Pipelines as Code (PaC) CI/CD Model](https://pipelinesascode.com/)
-For more information on Pipelines as Code concepts and architecture, see the [official documentation](https://pipelinesascode.com/docs/concepts/).
+For more information on Pipelines as Code concepts and architecture, see the [official documentation](https://pipelinesascode.com/docs/concepts/). See [Event Flow](#event-flow) near the end of this README for a visual overview of how this repository applies that model.
 
 On pushes to the branch configured in `.tekton/pipelinerun.yaml`, PaC creates a `PipelineRun` only when one of these paths changes:
 
@@ -128,8 +142,6 @@ oc get builds -n <target-namespace>
 oc rollout status deployment/<deployment-name> -n <target-namespace>
 oc get route <route-name> -n <target-namespace>
 ```
-<img width="728" height="201" alt="image" src="https://github.com/user-attachments/assets/4a50c157-7f41-47cc-a27e-bba9b0d08977" />
-
 
 To inspect the relationship between the reusable pipeline and an execution:
 
@@ -159,3 +171,29 @@ Reuse rule:
 
 - `GET /healthz` - liveness/readiness/startup probe endpoint
 - `GET /` - sample hello page driven by the `RESPONSE` environment variable
+
+## Event Flow
+
+```mermaid
+flowchart TD
+    A[Developer pushes commit to configured branch] --> B[GitHub or GitLab webhook]
+    B --> C[OpenShift Pipelines as Code controller]
+    C --> D[Repository CR in target namespace]
+    D --> E[Fetch repository content at pushed revision]
+    E --> F[Read .tekton/pipelinerun.yaml]
+    F --> G[Evaluate branch and file-change CEL filters]
+    G --> H[Resolve referenced pipeline and tasks from .tekton/]
+    H --> I[Create PipelineRun in target namespace]
+
+    I --> J[git-clone task]
+    J --> K[PVC-backed source workspace]
+    K --> L[openshift-binary-build task]
+    L --> M[Create or update BuildConfig]
+    M --> N[Start OpenShift binary Build]
+    N --> O[Push image to configured registry]
+    O --> P[openshift-deploy task]
+    P --> Q[Apply manifests from deployment/app]
+    Q --> R[Update Deployment image and wait for rollout]
+
+    I --> S[Report commit status back to Git provider]
+```
