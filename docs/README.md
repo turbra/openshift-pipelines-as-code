@@ -1,1 +1,1 @@
-![Event flow](docs/event-flow.gif)
+![Event flow](event-flow.gif)
