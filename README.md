@@ -17,6 +17,7 @@ The sample app follows the `hello-openshift` pattern: it listens on port `8080` 
 - [Security Notes](#security-notes)
 - [Health Endpoints](#health-endpoints)
 - [Event Flow](#event-flow)
+- [Docs](docs/README.md)
 
 ## Workflow
 
