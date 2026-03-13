@@ -127,6 +127,8 @@ oc get builds -n <target-namespace>
 oc rollout status deployment/<deployment-name> -n <target-namespace>
 oc get route <route-name> -n <target-namespace>
 ```
+<img width="728" height="201" alt="image" src="https://github.com/user-attachments/assets/4a50c157-7f41-47cc-a27e-bba9b0d08977" />
+
 
 To inspect the relationship between the reusable pipeline and an execution:
 
